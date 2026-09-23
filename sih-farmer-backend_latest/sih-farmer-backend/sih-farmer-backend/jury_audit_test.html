@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AGRISync - Jury Audit Trail Live Inspector</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #e2e8f0; padding: 30px; margin: 0; }
+    .card { max-width: 960px; margin: auto; background: #1e293b; padding: 25px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+    h2 { color: #38bdf8; margin-top: 0; }
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+    button { cursor: pointer; padding: 10px 14px; font-weight: bold; border-radius: 6px; border: none; font-size: 13px; }
+    .btn-action { background: #3b82f6; color: white; }
+    .btn-tamper { background: #ef4444; color: white; }
+    .btn-inspect { background: #10b981; color: white; }
+    .chain-box { margin-top: 20px; background: #0b0f19; border: 1px solid #334155; border-radius: 8px; padding: 16px; max-height: 400px; overflow-y: auto; font-family: monospace; font-size: 12px; }
+    .block { background: #1e293b; border-left: 4px solid #38bdf8; padding: 10px 14px; margin-bottom: 10px; border-radius: 4px; }
+    .block-flagged { border-left-color: #ef4444; }
+    .hash { color: #f59e0b; word-break: break-all; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h2>SIH Transparency & Anti-Corruption Audit Ledger</h2>
+  <p style="color: #94a3b8;">Demonstrating Non-Repudiation: Every login, gate scan, and boundary intrusion is cryptographically hashed with SHA-256.</p>
+
+  <div class="btn-row">
+    <button class="btn-action" onclick="runSimulation('LOGIN_FARMER')">1. Farmer Logs In</button>
+    <button class="btn-action" onclick="runSimulation('LOGIN_OPERATOR')">2. Operator Logs In</button>
+    <button class="btn-action" onclick="runSimulation('GATE_SCAN')">3. Operator Scans QR Pass</button>
+    <button class="btn-tamper" onclick="runSimulation('INTRUSION_ATTEMPT')">4. Intruder Attempts Queue Breach</button>
+    <button class="btn-inspect" onclick="fetchLedger()">5. View State Audit Trail</button>
+  </div>
+
+  <div id="outputLog" style="color: #38bdf8; font-weight: bold; margin-bottom: 10px;">Status: Ready for demonstration.</div>
+  
+  <div class="chain-box" id="chainContainer">
+    // Cryptographic audit chain logs will populate here...
+  </div>
+</div>
+
+<script>
+  let farmerToken = "";
+  let operatorToken = "";
+  let adminToken = "";
+
+  async function runSimulation(type) {
+    if (type === 'LOGIN_FARMER') {
+      const res = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: "9876543210" })
+      });
+      const data = await res.json();
+      farmerToken = data.accessToken;
+      document.getElementById("outputLog").innerText = "Farmer authenticated. Session event recorded.";
+    } 
+    else if (type === 'LOGIN_OPERATOR') {
+      const res = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: "9112233445" })
+      });
+      const data = await res.json();
+      operatorToken = data.accessToken;
+      document.getElementById("outputLog").innerText = "Mandi Operator authenticated. Session event recorded.";
+    } 
+    else if (type === 'GATE_SCAN') {
+      if (!operatorToken) return alert("Please log in as Operator first.");
+      await fetch("http://localhost:5000/api/mandi/scan-qr-pass", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${operatorToken}` },
+        body: JSON.stringify({ tokenId: "TK-1082" })
+      });
+      document.getElementById("outputLog").innerText = "Gate scan completed. Admission event added to block.";
+    } 
+    else if (type === 'INTRUSION_ATTEMPT') {
+      if (!farmerToken) return alert("Please log in as Farmer first.");
+      // Attempt unauthorized call to operator endpoint
+      await fetch("http://localhost:5000/api/operator/queue", {
+        headers: { "Authorization": `Bearer ${farmerToken}` }
+      });
+      document.getElementById("outputLog").innerText = "Security violation detected & captured into tamper-evident log.";
+    }
+    fetchLedger();
+  }
+
+  async function fetchLedger() {
+    // Generate admin session on demand to inspect records
+    const authRes = await fetch("http://localhost:5000/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone: "9988776655" })
+    });
+    const authData = await authRes.json();
+    adminToken = authData.accessToken;
+
+    const res = await fetch("http://localhost:5000/api/admin/audit-ledger", {
+      headers: { "Authorization": `Bearer ${adminToken}` }
+    });
+    const data = await res.json();
+
+    const container = document.getElementById("chainContainer");
+    container.innerHTML = "";
+
+    data.auditTrail.forEach((block) => {
+      const isBlocked = block.status === "BLOCKED" || block.status === "DENIED" || block.status === "FLAGGED";
+      const div = document.createElement("div");
+      div.className = isBlocked ? "block block-flagged" : "block";
+      div.innerHTML = `
+        <div><strong>[EVENT #${block.index}] ${block.action}</strong> | Status: <span style="color: ${isBlocked ? '#ef4444' : '#10b981'}">${block.status}</span></div>
+        <div>Actor: <strong>${block.actorId}</strong> (${block.actorRole}) | Details: ${block.details}</div>
+        <div style="font-size: 10px; color: #64748b; margin-top: 4px;">Time: ${block.timestamp}</div>
+        <div class="hash" style="margin-top: 4px;">SHA-256: ${block.hash}</div>
+        <div style="font-size: 10px; color: #475569;">Prev Hash: ${block.previousHash}</div>
+      `;
+      container.appendChild(div);
+    });
+  }
+</script>
+
+</body>
+</html>

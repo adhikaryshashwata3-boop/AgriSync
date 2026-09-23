@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AGRISync - Security & RBAC Boundary Verifier</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #eceff1; padding: 30px; margin: 0; }
+    .panel { max-width: 840px; margin: auto; background: #ffffff; padding: 28px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+    h2 { color: #1b3a2a; margin-top: 0; }
+    .login-row, .action-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    button { cursor: pointer; padding: 10px 14px; font-weight: 600; border-radius: 6px; border: 1px solid transparent; font-size: 13px; }
+    .btn-farmer { background: #2e7d32; color: #ffffff; }
+    .btn-operator { background: #1565c0; color: #ffffff; }
+    .btn-admin { background: #6a1b9a; color: #ffffff; }
+    .btn-attack { background: #c62828; color: #ffffff; }
+    .btn-action { background: #37474f; color: #ffffff; }
+    .status-box { background: #f8f9fa; border: 1px solid #cfd8dc; border-radius: 8px; padding: 14px; margin-bottom: 20px; font-size: 13px; }
+    .badge { padding: 3px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; }
+    .badge-none { background: #ffcdd2; color: #b71c1c; }
+    .badge-farmer { background: #c8e6c9; color: #1b5e20; }
+    .badge-operator { background: #bbdefb; color: #0d47a1; }
+    .badge-admin { background: #e1bee7; color: #4a148c; }
+    .badge-hacked { background: #ffcdd2; color: #b71c1c; border: 1px dashed red; }
+    .console { background: #121212; color: #00e676; padding: 16px; border-radius: 6px; font-family: monospace; font-size: 13px; white-space: pre-wrap; max-height: 260px; overflow-y: auto; }
+  </style>
+</head>
+<body>
+
+<div class="panel">
+  <h2>Security & Role Boundary Enforcement (CIA Triad)</h2>
+  <p style="color: #546e7a; font-size: 13px;">Test authorized requests, unauthorized privilege escalation, and token tampering resistance.</p>
+
+  <div class="status-box">
+    <div><strong>Active Identity:</strong> <span id="userName">None (Logged Out)</span></div>
+    <div style="margin-top: 6px;"><strong>Cryptographic Role:</strong> <span id="userRole" class="badge badge-none">NONE</span></div>
+    <div style="margin-top: 6px; word-break: break-all; color: #78909c; font-size: 11px;">
+      <strong>Signed Bearer Token:</strong> <span id="tokenString">None</span>
+    </div>
+  </div>
+
+  <div class="login-row">
+    <button class="btn-farmer" onclick="login('9876543210')">Login: Farmer (Ramesh)</button>
+    <button class="btn-operator" onclick="login('9112233445')">Login: Operator (Verma)</button>
+    <button class="btn-admin" onclick="login('9988776655')">Login: State Admin (Sharma)</button>
+    <button style="background: #e0e0e0; color: #37474f;" onclick="logout()">Logout</button>
+  </div>
+
+  <div style="margin: 20px 0; padding: 14px; background: #fff3e0; border-left: 4px solid #ff9800; border-radius: 4px;">
+    <strong>Simulate Privilege Escalation Attack:</strong>
+    <p style="margin: 4px 0 10px 0; font-size: 12px; color: #6d4c41;">Attempts to forge the client-side JWT role from FARMER to ADMIN without the server's private secret.</p>
+    <button class="btn-attack" onclick="tamperTokenRole()">Forge Token Role to 'ADMIN'</button>
+  </div>
+
+  <h4 style="margin: 16px 0 8px 0;">Execute Protected Boundary Requests:</h4>
+  <div class="action-row">
+    <button class="btn-action" onclick="fetchRoute('/api/farmer/dashboard', 'Farmer Dashboard')">Fetch Farmer Dashboard</button>
+    <button class="btn-action" onclick="fetchRoute('/api/operator/queue', 'Operator Gate Queue')">Fetch Operator Queue</button>
+    <button class="btn-action" onclick="fetchRoute('/api/admin/state-dashboard', 'State Admin Ledger')">Fetch State Admin Ledger</button>
+  </div>
+
+  <h4 style="margin: 16px 0 8px 0;">Security Response Console:</h4>
+  <div class="console" id="consoleLog">// Results of access attempts will appear here...</div>
+</div>
+
+<script>
+  let activeToken = null;
+
+  async function login(phone) {
+    try {
+      const res = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        activeToken = data.accessToken;
+        document.getElementById("userName").innerText = `${data.user.name} (${data.user.id})`;
+        const badge = document.getElementById("userRole");
+        badge.innerText = data.user.role;
+        badge.className = `badge badge-${data.user.role.toLowerCase()}`;
+        document.getElementById("tokenString").innerText = activeToken.substring(0, 50) + "... [Verified]";
+        log(`[AUTH SUCCESS] Logged in as ${data.user.role} (${data.user.name}). Digital token stored.`);
+      } else {
+        log(`[AUTH FAILED] ${data.message}`);
+      }
+    } catch (e) {
+      log(`[CONNECTION ERROR] ${e.message}`);
+    }
+  }
+
+  function logout() {
+    activeToken = null;
+    document.getElementById("userName").innerText = "None (Logged Out)";
+    const badge = document.getElementById("userRole");
+    badge.innerText = "NONE";
+    badge.className = "badge badge-none";
+    document.getElementById("tokenString").innerText = "None";
+    log("[SESSION TERMINATED] User token cleared.");
+  }
+
+  // Attack Simulation: Malicious user alters their token payload to ADMIN
+  function tamperTokenRole() {
+    if (!activeToken) {
+      log("[ATTACK REJECTED] You must be logged in as a Farmer first to attempt a privilege escalation attack.");
+      return;
+    }
+    try {
+      const parts = activeToken.split(".");
+      const payload = JSON.parse(atob(parts[1]));
+      payload.role = "ADMIN"; // Tamper role
+      const forgedPayload = btoa(JSON.stringify(payload));
+      // Reassemble token with forged payload but original signature
+      activeToken = `${parts[0]}.${forgedPayload}.${parts[2]}`;
+      
+      const badge = document.getElementById("userRole");
+      badge.innerText = "TAMPERED (ADMIN)";
+      badge.className = "badge badge-hacked";
+      document.getElementById("tokenString").innerText = activeToken.substring(0, 50) + "... [TAMPERED]";
+      log("[ATTACK EXECUTED] Token payload tampered to role='ADMIN'. The cryptographic signature is now broken.");
+    } catch (e) {
+      log(`[TAMPER FAILED] ${e.message}`);
+    }
+  }
+
+  async function fetchRoute(endpoint, resourceName) {
+    log(`[ACCESS ATTEMPT] Calling ${resourceName} (${endpoint})...`);
+    try {
+      const headers = {};
+      if (activeToken) {
+        headers["Authorization"] = `Bearer ${activeToken}`;
+      }
+      const res = await fetch(`http://localhost:5000${endpoint}`, { headers });
+      const data = await res.json();
+
+      if (res.status === 200) {
+        log(`[200 OK - ACCESS GRANTED]\n${JSON.stringify(data, null, 2)}`);
+      } else if (res.status === 403) {
+        log(`[403 FORBIDDEN - SECURITY ENFORCED]\n${JSON.stringify(data, null, 2)}`);
+      } else if (res.status === 401) {
+        log(`[401 UNAUTHORIZED - NO CREDENTIALS]\n${JSON.stringify(data, null, 2)}`);
+      } else {
+        log(JSON.stringify(data, null, 2));
+      }
+    } catch (e) {
+      log(`[REQUEST ERROR] ${e.message}`);
+    }
+  }
+
+  function log(msg) {
+    document.getElementById("consoleLog").innerText = msg;
+  }
+</script>
+
+</body>
+</html>

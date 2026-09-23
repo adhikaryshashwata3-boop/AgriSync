@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AGRISync - Digital Pass Verification</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #eef2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+    .ticket-card { background: #ffffff; width: 340px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); overflow: hidden; text-align: center; }
+    .card-header { background: #1b5e20; color: white; padding: 18px; }
+    .card-header h3 { margin: 0; font-size: 18px; }
+    .card-body { padding: 20px; }
+    .farmer-name { font-size: 20px; font-weight: bold; color: #212121; margin: 0; }
+    .token-id { font-size: 13px; color: #616161; margin-top: 4px; }
+    .qr-frame { margin: 18px 0; background: #fafafa; border: 1px dashed #bdbdbd; border-radius: 12px; padding: 12px; display: inline-block; }
+    img { width: 190px; height: 190px; display: block; border-radius: 8px; }
+    .status-badge { display: inline-block; background: #e8f5e9; color: #2e7d32; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+    .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; text-align: left; font-size: 12px; }
+    .meta-box { background: #f5f5f5; padding: 8px 10px; border-radius: 6px; }
+    .meta-label { color: #757575; }
+    .meta-val { font-weight: bold; color: #212121; margin-top: 2px; }
+  </style>
+</head>
+<body>
+
+<div class="ticket-card">
+  <div class="card-header">
+    <h3>Mandi Entry Pass</h3>
+  </div>
+  <div class="card-body">
+    <div class="farmer-name" id="name">Loading...</div>
+    <div class="token-id" id="token">Token ID: --</div>
+    
+    <div class="qr-frame">
+      <img id="qr" src="" alt="Dynamic Scannable QR" />
+    </div>
+
+    <div><span class="status-badge" id="status">Syncing...</span></div>
+
+    <div class="meta-grid">
+      <div class="meta-box"><div class="meta-label">Crop</div><div class="meta-val" id="crop">--</div></div>
+      <div class="meta-box"><div class="meta-label">Quantity</div><div class="meta-val" id="qty">--</div></div>
+      <div class="meta-box"><div class="meta-label">Mandi</div><div class="meta-val" id="mandi">--</div></div>
+      <div class="meta-box"><div class="meta-label">Wait Estimate</div><div class="meta-val" id="wait">--</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  fetch("http://localhost:5000/api/farmer/token/TK-1082")
+    .then((r) => r.json())
+    .then((d) => {
+      const t = d.token;
+      document.getElementById("name").innerText = t.farmerName;
+      document.getElementById("token").innerText = `Token: ${t.id}`;
+      document.getElementById("qr").src = t.qrData;
+      document.getElementById("status").innerText = `Status: ${t.status}`;
+      document.getElementById("crop").innerText = t.cropType;
+      document.getElementById("qty").innerText = t.quantity;
+      document.getElementById("mandi").innerText = t.mandiCenter;
+      document.getElementById("wait").innerText = `~${t.estimatedWaitMinutes} min`;
+    })
+    .catch((err) => console.error("Could not fetch token:", err));
+</script>
+
+</body>
+</html>

@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AGRISync Telephony & AI Gateway - Dual Mandi & Operator Desk</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 25px; margin: 0; }
+    .header { max-width: 1280px; margin: 0 auto 20px; display: flex; justify-content: space-between; align-items: center; }
+    .main-grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 20px; max-width: 1280px; margin: auto; }
+    .card { background: #1e293b; border-radius: 12px; padding: 20px; border: 1px solid #334155; }
+    h3 { margin-top: 0; font-size: 15px; color: #38bdf8; display: flex; justify-content: space-between; }
+    select, input { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #475569; background: #0b0f19; color: white; border-radius: 6px; font-size: 13px; margin-bottom: 10px; }
+    .btn { padding: 8px 12px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px; margin: 2px; }
+    .btn-green { background: #16a34a; color: white; }
+    .btn-blue { background: #2563eb; color: white; }
+    .btn-amber { background: #d97706; color: white; }
+    .btn-red { background: #dc2626; color: white; }
+    .keypad { display: grid; grid-template-columns: repeat(3, 90px); gap: 8px; margin-top: 15px; }
+    .key { width: 90px; height: 44px; background: #334155; color: white; border: none; font-size: 13px; font-weight: bold; border-radius: 6px; cursor: pointer; }
+    .key:hover { background: #475569; }
+    .key:active { background: #64748b; }
+    .display-screen { background: #0b0f19; color: #38bdf8; font-family: monospace; padding: 14px; border-radius: 8px; font-size: 12px; min-height: 220px; white-space: pre-wrap; margin-top: 15px; border: 1px solid #334155; line-height: 1.5; }
+    .sms-box { background: #0b0f19; border-left: 4px solid #16a34a; padding: 10px; margin-top: 8px; border-radius: 4px; font-size: 11px; font-family: monospace; }
+    .crop-tag { display: inline-block; background: #0369a1; color: #e0f2fe; padding: 3px 8px; border-radius: 4px; font-size: 11px; margin: 2px; }
+    .mandi-pill { display: inline-block; background: #065f46; color: #a7f3d0; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; margin-right: 5px; cursor: pointer; }
+    .mandi-pill.selected { border: 2px solid #38bdf8; background: #047857; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }
+    th, td { padding: 8px; text-align: left; border-bottom: 1px solid #334155; }
+    th { color: #94a3b8; font-weight: 600; }
+    .badge-urgent { background: #ef4444; color: white; padding: 2px 6px; border-radius: 10px; font-weight: bold; }
+    .badge-resolved { background: #10b981; color: white; padding: 2px 6px; border-radius: 10px; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h2>AGRISync Telephony & AI Gateway</h2>
+  <span style="background: #065f46; color: #6ee7b7; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold;">
+    ● Dual-Mandi Balancer & Supervisor Desk Active
+  </span>
+</div>
+
+<div class="main-grid">
+  <!-- Left Column: IVR System -->
+  <div class="card">
+    <h3>Toll-Free Helpline (1800-000-2026) <span>Female Voice Engine</span></h3>
+
+    <label style="font-size: 11px; color: #94a3b8;">Enter Area Postal PIN Code (Dynamic Dual-Mandi Geocoding):</label>
+    <div style="display: flex; gap: 8px;">
+      <input type="text" id="pinInput" value="700036" maxlength="6" />
+      <button class="btn btn-blue" onclick="resolvePinCode()">Resolve Area</button>
+    </div>
+
+    <!-- Dual Mandi Routing Selection Bar -->
+    <div id="dualMandiContainer" style="display: none; margin-bottom: 12px;">
+      <div style="font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Select Nearest Mandi Yard:</div>
+      <span class="mandi-pill selected" id="mandiPill1" onclick="chooseMandi(1)">Primary Yard</span>
+      <span class="mandi-pill" id="mandiPill2" onclick="chooseMandi(2)">Secondary Yard (Less Wait)</span>
+    </div>
+
+    <!-- Historical Yields -->
+    <div style="margin-bottom: 10px; font-size: 11px; color: #cbd5e1;">
+      <strong style="color: #38bdf8;">Historical ICAR/Agmarknet Crop Trends (5-10 Yrs):</strong>
+      <div id="historicalCropsList" style="margin-top: 4px;">Click 'Resolve Area' to fetch historical records.</div>
+    </div>
+
+    <label style="font-size: 11px; color: #94a3b8;">Vernacular Language:</label>
+    <select id="langSelect" onchange="setLanguage(this.value)">
+      <option value="bn">Bengali (বাংলা)</option>
+      <option value="pa">Punjabi (ਪੰਜਾਬੀ)</option>
+      <option value="hi">Hindi (हिन्दी)</option>
+      <option value="mr">Marathi (मराठी)</option>
+      <option value="en">English (Indian)</option>
+    </select>
+
+    <div style="display: flex; gap: 6px; margin-top: 6px;">
+      <button class="btn btn-green" id="btnCall" onclick="startCall()">📞 Dial Toll-Free Line</button>
+      <button class="btn btn-amber" onclick="simulateCallDrop()">⚡ Drop Call (P7)</button>
+      <button class="btn btn-blue" onclick="testT24Reminder()">⏰ T-24h Alert (P5)</button>
+      <button class="btn btn-red" id="btnHangup" onclick="hangUp()" style="display: none;">Hang Up</button>
+    </div>
+
+    <!-- Keypad -->
+    <div class="keypad">
+      <button class="key" onclick="pressKey(1)">1 (Queue/Opt1)</button>
+      <button class="key" onclick="pressKey(2)">2 (MSP/Opt2)</button>
+      <button class="key" onclick="pressKey(3)">3 (Weather/Opt3)</button>
+      <button class="key" onclick="pressKey(4)">4 (Voice Search)</button>
+      <button class="key" style="background: #1e3a8a;" onclick="pressKey(5)">5 (Pass Re-send)</button>
+      <button class="key" onclick="pressKey(6)">6 (Cereals)</button>
+      <button class="key" onclick="pressKey(7)">7 (Pulses)</button>
+      <button class="key" onclick="pressKey(8)">8 (Oilseeds)</button>
+      <button class="key" style="background: #c2410c;" onclick="pressKey(9)">9 (Supervisor)</button>
+      <button class="key" onclick="pressKey('*')">* (Auth PIN)</button>
+      <button class="key" onclick="pressKey(0)">0 (Main Menu)</button>
+      <button class="key" style="background: #0284c7;" onclick="pressKey('#')"># (Enter)</button>
+    </div>
+
+    <div style="margin-top: 10px;">
+      <label style="font-size: 12px; color: #94a3b8;">
+        <input type="checkbox" id="tractorNoiseToggle" /> Simulate Tractor Ambient Noise (Problem 8)
+      </label>
+    </div>
+
+    <div class="display-screen" id="ivrAudioScreen">// Enter PIN and click 'Resolve Area' or dial the toll-free line...</div>
+  </div>
+
+  <!-- Right Column: Live Desk & SMS Alerts -->
+  <div>
+    <!-- Live 15-Minute Operator Desk -->
+    <div class="card" style="margin-bottom: 20px;">
+      <h3>
+        Mandi Supervisor Callback Desk (15-Min SLA)
+        <button class="btn btn-blue" style="padding: 2px 8px; font-size: 10px;" onclick="fetchCallbacks()">Refresh</button>
+      </h3>
+      <div style="max-height: 180px; overflow-y: auto;">
+        <table id="callbackTable">
+          <thead>
+            <tr>
+              <th>Ticket</th>
+              <th>Phone</th>
+              <th>Status</th>
+              <th>15-Min Deadline</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="callbackTableBody">
+            <tr><td colspan="5" style="color: #64748b; text-align: center;">No incoming callback requests yet. Press 9 on IVR to test.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Direct Cellular SMS Alerts -->
+    <div class="card" style="margin-bottom: 20px;">
+      <h3>Direct Phone SMS Notifications (UCS-2 Verified)</h3>
+      <div id="smsStatus" style="max-height: 160px; overflow-y: auto; margin-top: 10px;"></div>
+    </div>
+
+    <!-- Problem 6 Escrow -->
+    <div class="card">
+      <h3>Problem 6: Offline Paper Enrollment Escrow (VLE)</h3>
+      <button class="btn btn-blue" onclick="submitOfflinePaperForm()">Simulate VLE Batch Submission</button>
+      <div id="escrowStatus" style="margin-top: 8px; font-family: monospace; font-size: 11px; color: #38bdf8;"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentLang = "bn";
+  let isCallActive = false;
+  let browserVoices = [];
+  let speechRecognizer = null;
+  let callWorkflowStep = "IDLE";
+  
+  let selectedCropName = "Paddy";
+  let committedQuantity = "50";
+  let quantityInputBuffer = "";
+  let currentSessionToken = "TK-1082";
+  let assignedMandiAddress = "Cossipore Wholesale Mandi, Gate 2, Kolkata - 700036";
+  let activeCropDrilldownList = [];
+
+  function refreshVoices() {
+    if ('speechSynthesis' in window) browserVoices = window.speechSynthesis.getVoices();
+  }
+  refreshVoices();
+  if ('speechSynthesis' in window) window.speechSynthesis.onvoiceschanged = refreshVoices;
+
+  function setLanguage(val) {
+    currentLang = val;
+    if (isCallActive) startCall();
+  }
+
+  // Female Voice Synthesizer
+  function playVoice(text, langCode, callback) {
+    if (!('speechSynthesis' in window)) { if (callback) callback(); return; }
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.resume();
+
+    const selectedVoice = browserVoices.find(v => {
+      const n = v.name.toLowerCase();
+      const l = v.lang.toLowerCase();
+      return (l.includes(langCode) || l.includes("in")) && (n.includes("female") || n.includes("zira") || n.includes("aditi") || n.includes("heera") || n.includes("geeta"));
+    }) || browserVoices[0];
+
+    const utterance = new SpeechSynthesisUtterance(String(text).replace(/[|#_~*\/]/g, " ").replace(/₹/g, "rupaye ").trim());
+    if (selectedVoice) { utterance.voice = selectedVoice; utterance.lang = selectedVoice.lang; }
+    utterance.pitch = 1.2;
+    utterance.rate = 0.90;
+    utterance.onend = () => { if (callback) callback(); };
+    utterance.onerror = () => { if (callback) callback(); };
+    window.speechSynthesis.speak(utterance);
+  }
+
+  // Problem 1 & Dual-Mandi Resolution
+  async function resolvePinCode() {
+    const pin = document.getElementById("pinInput").value;
+    try {
+      const res = await fetch("http://localhost:5000/api/notify/ivr/resolve-pincode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callerPhone: "9876543210", pinCode: pin })
+      });
+      const d = await res.json();
+      currentLang = d.region.lang;
+      document.getElementById("langSelect").value = currentLang;
+
+      // Show Dual Mandi Balance Options
+      const pMandi = d.dualMandiOptions.primary;
+      const sMandi = d.dualMandiOptions.secondary;
+      assignedMandiAddress = `${pMandi.name}, ${pMandi.address}`;
+
+      document.getElementById("dualMandiContainer").style.display = "block";
+      document.getElementById("mandiPill1").innerText = `1: ${pMandi.name} (${pMandi.dist} km | Wait: ${pMandi.wait}m)`;
+      document.getElementById("mandiPill2").innerText = `2: ${sMandi.name} (${sMandi.dist} km | Wait: ${sMandi.wait}m)`;
+
+      // Render Historical Crops
+      document.getElementById("historicalCropsList").innerHTML = d.historicalCrops.map(c => 
+        `<span class="crop-tag">${c.crop_name} (${c.season}) - ${c.avg_yield_qtl_acre} Qtl/ac | ${c.historical_trend} | MSP: ₹${c.msp_inr}</span>`
+      ).join("<br/>");
+
+      document.getElementById("ivrAudioScreen").innerText = 
+        `[PROBLEM 1: DUAL-MANDI RESOLVED: ${pin}]\n` +
+        `Jurisdiction: ${d.region.district}, ${d.region.state}\n` +
+        `Assigned Primary Mandi: ${pMandi.name}\n\n` +
+        `"Spoken Mandi Routing Alert: ${d.dualMandiPrompt}"`;
+
+      playVoice(d.dualMandiPrompt, currentLang);
+    } catch (e) {
+      document.getElementById("ivrAudioScreen").innerText = `[ERROR]: Ensure 'node server.js' is running.`;
+    }
+  }
+
+  async function chooseMandi(choice) {
+    document.querySelectorAll(".mandi-pill").forEach(p => p.classList.remove("selected"));
+    document.getElementById(`mandiPill${choice}`).classList.add("selected");
+    const res = await fetch("http://localhost:5000/api/notify/ivr/select-mandi", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callerPhone: "9876543210", selection: choice })
+    });
+    const d = await res.json();
+    assignedMandiAddress = d.selectedMandi;
+    document.getElementById("ivrAudioScreen").innerText += `\n[Mandi Switched to: ${assignedMandiAddress}]`;
+  }
+
+  async function startCall() {
+    isCallActive = true;
+    callWorkflowStep = "MENU";
+    quantityInputBuffer = "";
+    document.getElementById("btnHangup").style.display = "inline-block";
+    document.getElementById("btnCall").style.display = "none";
+
+    const promptText = "Welcome to AgriSync PM Kisan Helpline. Press 1 for Live Queue, 2 for MSP, 3 for Weather, 4 for Voice Search, 5 for SMS Pass, 6 for Cereals, 7 for Pulses, 8 for Oilseeds, and 9 for Operator Callback.";
+    document.getElementById("ivrAudioScreen").innerText = `[CALL CONNECTED - 1800-000-2026]\nAssigned Mandi: ${assignedMandiAddress}\nToken: ${currentSessionToken} (${selectedCropName})\n\n"Voice: ${promptText}"`;
+    playVoice(promptText, currentLang);
+  }
+
+  // Keypad Handlers
+  async function pressKey(k) {
+    if (!isCallActive) return alert("Dial the toll-free line first!");
+
+    // Problem 4: Zero-Trust PIN Verification
+    if (callWorkflowStep === "AWAITING_PIN_AUTH") {
+      if (k === "#") {
+        const cleanPin = quantityInputBuffer.replace(/[^0-9]/g, "");
+        quantityInputBuffer = "";
+        const res = await fetch("http://localhost:5000/api/notify/ivr/verify-pin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ callerPhone: "9876543210", enteredPin: cleanPin })
+        });
+        const d = await res.json();
+        if (d.authenticated) {
+          callWorkflowStep = "MENU";
+          document.getElementById("ivrAudioScreen").innerText = `[PROBLEM 4: ZERO-TRUST AUTHENTICATION PASSED]\nSecurity Hash Matched. Welcome back.`;
+          playVoice("Authentication successful. Welcome back.", currentLang);
+        } else {
+          document.getElementById("ivrAudioScreen").innerText = `[INCORRECT PIN] Access Blocked.`;
+          playVoice("Incorrect PIN. Access blocked.", currentLang, () => hangUp());
+        }
+      } else if (!isNaN(k) && k !== "*") {
+        quantityInputBuffer += k;
+        document.getElementById("ivrAudioScreen").innerText = `[SECURITY PIN: ${'*'.repeat(quantityInputBuffer.length)}]\nPress # to submit.`;
+      }
+      return;
+    }
+
+    // Problem 2: Layer 2 Crop Selection
+    if (callWorkflowStep === "AWAITING_CROP_SELECTION") {
+      const idx = parseInt(k, 10) - 1;
+      if (idx >= 0 && idx < activeCropDrilldownList.length) {
+        selectedCropName = activeCropDrilldownList[idx].name;
+        callWorkflowStep = "AWAITING_QUANTITY_DTMF";
+        quantityInputBuffer = "";
+        const askQty = `Selected ${selectedCropName}. Please enter quantity in quintals on keypad followed by pound key.`;
+        document.getElementById("ivrAudioScreen").innerText = `[PROBLEM 2: CROP CHOSEN: ${selectedCropName.toUpperCase()}]\n\n"Voice: ${askQty}"`;
+        playVoice(askQty, currentLang);
+        return;
+      }
+    }
+
+    // Problem 9: Quantity Capture
+    if (callWorkflowStep === "AWAITING_QUANTITY_DTMF") {
+      if (k === "#") {
+        if (!quantityInputBuffer) return;
+        submitQuantity(quantityInputBuffer);
+      } else if (!isNaN(k) && k !== "*") {
+        quantityInputBuffer += k;
+        document.getElementById("ivrAudioScreen").innerText = `[QUANTITY: ${quantityInputBuffer} Quintals] Press # to confirm.`;
+      }
+      return;
+    }
+
+    // Main Menu Actions
+    if (k === 1) {
+      playVoice("Token TK-1082 is at Quality Inspection. Three farmers ahead. Wait time 18 minutes.", currentLang);
+    } else if (k === 2) {
+      playVoice("MSP: Wheat 2585 rupees, Paddy 2369 rupees, Mustard 6200 rupees per quintal.", currentLang);
+    } else if (k === 3) {
+      playVoice("Weather Warning: Rain expected from 2 PM. Covered sheds 3 and 4 activated.", currentLang);
+    } else if (k === 4) {
+      if (document.getElementById("tractorNoiseToggle").checked) {
+        playVoice("High tractor engine noise detected. Voice offline. Please use keypad numbers.", currentLang);
+      } else {
+        document.getElementById("ivrAudioScreen").innerText += `\n[Microphone Listening...]`;
+        playVoice("Please speak your crop name now, such as Wheat or Paddy.", currentLang, () => activateVoiceSearch());
+      }
+    } else if (k === 5) {
+      // Problem 10: Omnichannel Handshake
+      const res = await fetch("http://localhost:5000/api/notify/ivr/device-handshake", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: "9876543210", lang: currentLang })
+      });
+      const d = await res.json();
+      addSmsLog(d.smsRecord.message);
+      document.getElementById("ivrAudioScreen").innerText = `[PROBLEM 10: SMS PASS DISPATCHED]\nToken: ${d.tokenId} | Mandi: ${d.mandiAddress}`;
+      playVoice(d.audioPrompt, currentLang, () => hangUp());
+    } else if (k === 6 || k === 7 || k === 8) {
+      // Problem 2: Layer 1 Category Pick
+      const res = await fetch("http://localhost:5000/api/notify/ivr/crop-drilldown", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callerPhone: "9876543210", step: "CATEGORY_SELECTED", selection: k })
+      });
+      const d = await res.json();
+      activeCropDrilldownList = d.crops;
+      callWorkflowStep = "AWAITING_CROP_SELECTION";
+      document.getElementById("ivrAudioScreen").innerText = `[PROBLEM 2: DRILL-DOWN]\n` + d.crops.map((c, i) => `${i+1}: ${c.name}`).join(" | ");
+      playVoice(d.prompt, currentLang);
+    } else if (k === 9) {
+      // Desk Ticket Generation (Problem 10 Operator Desk)
+      const res = await fetch("http://localhost:5000/api/notify/ivr/register-callback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callerPhone: "9876543210", lang: currentLang })
+      });
+      const d = await res.json();
+      addSmsLog(d.smsRecord.message);
+      fetchCallbacks();
+      document.getElementById("ivrAudioScreen").innerText = `[KEYPAD 9: CALLBACK TICKET ${d.ticket.ticketId} LOGGED]\nOfficer calling in 15 mins.`;
+      playVoice("Your callback ticket has been registered. An officer will call within fifteen minutes.", currentLang, () => hangUp());
+    } else if (k === "*") {
+      callWorkflowStep = "AWAITING_PIN_AUTH";
+      quantityInputBuffer = "";
+      document.getElementById("ivrAudioScreen").innerText = `[PROBLEM 4: SECURITY CHALLENGE] Enter 4-digit PIN followed by #. (Default: 1234)`;
+      playVoice("Security verification. Please enter your four digit PIN followed by hash.", currentLang);
+    } else if (k === 0) {
+      callWorkflowStep = "MENU";
+      startCall();
+    }
+  }
+
+  async function submitQuantity(qty) {
+    const res = await fetch("http://localhost:5000/api/notify/ivr/validate-quantity", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quantity: parseFloat(qty), lang: currentLang, callerPhone: "9876543210", selectedCrop: selectedCropName })
+    });
+    const d = await res.json();
+    if (d.holdRequired) {
+      document.getElementById("ivrAudioScreen").innerText = `[PROBLEM 9: HOLD FLAG] Exceeds 150 Qtl trolley bound.`;
+      playVoice(d.prompt, currentLang);
+    } else {
+      currentSessionToken = d.tokenId;
+      committedQuantity = String(qty);
+      addSmsLog(d.smsRecord.message);
+      document.getElementById("ivrAudioScreen").innerText = `[PASS GENERATED] Token: ${d.tokenId} | ${selectedCropName} (${qty} Qtl)\nMandi: ${d.mandiAddress}`;
+      playVoice("Booking committed. Your entry pass has been sent via SMS. Disconnecting.", currentLang, () => hangUp());
+    }
+  }
+
+  function activateVoiceSearch() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
+    speechRecognizer = new SR();
+    speechRecognizer.lang = "en-IN";
+    speechRecognizer.start();
+    speechRecognizer.onresult = (e) => {
+      const sp = e.results[0][0].transcript.toLowerCase();
+      selectedCropName = sp.includes("wheat") ? "Wheat" : (sp.includes("mustard") ? "Mustard" : "Paddy");
+      callWorkflowStep = "AWAITING_QUANTITY_DTMF";
+      quantityInputBuffer = "";
+      playVoice(`Selected ${selectedCropName}. Please enter quantity followed by hash.`, currentLang);
+    };
+  }
+
+  // Operator Desk Polling & Resolution
+  async function fetchCallbacks() {
+    const res = await fetch("http://localhost:5000/api/notify/ivr/callbacks");
+    const d = await res.json();
+    const tbody = document.getElementById("callbackTableBody");
+    if (!d.callbacks || d.callbacks.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" style="color: #64748b; text-align: center;">No active callbacks.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = d.callbacks.map(t => {
+      const isPending = t.status !== "RESOLVED";
+      return `
+        <tr>
+          <td><strong>${t.ticketId}</strong></td>
+          <td>${t.callerPhone}</td>
+          <td><span class="${isPending ? 'badge-urgent' : 'badge-resolved'}">${isPending ? 'PENDING' : 'RESOLVED'}</span></td>
+          <td style="color: #f59e0b; font-weight: bold;">${t.resolutionDeadline}</td>
+          <td>
+            ${isPending ? `<button class="btn btn-green" style="padding: 2px 6px; font-size: 10px;" onclick="resolveTicket('${t.ticketId}')">Resolve</button>` : `<span style="color:#6ee7b7">Done</span>`}
+          </td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  async function resolveTicket(id) {
+    await fetch("http://localhost:5000/api/notify/ivr/resolve-callback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ticketId: id, resolutionNotes: "Issue solved by Mandi supervisor." })
+    });
+    fetchCallbacks();
+  }
+
+  function addSmsLog(msg) {
+    const box = document.createElement("div");
+    box.className = "sms-box";
+    box.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    document.getElementById("smsStatus").prepend(box);
+  }
+
+  function hangUp() {
+    isCallActive = false;
+    callWorkflowStep = "IDLE";
+    if (speechRecognizer) { try { speechRecognizer.stop(); } catch(e) {} }
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    document.getElementById("btnHangup").style.display = "none";
+    document.getElementById("btnCall").style.display = "inline-block";
+  }
+
+  async function simulateCallDrop() {
+    if (!isCallActive) return alert("Start a call first.");
+    await fetch("http://localhost:5000/api/notify/ivr/call-disconnect-webhook", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callerPhone: "9876543210", lastSelectedCrop: selectedCropName, enteredQuantity: committedQuantity, lang: currentLang })
+    });
+    hangUp();
+    document.getElementById("ivrAudioScreen").innerText = `[CALL DROPPED] State saved with 30m TTL. Redial to resume.`;
+  }
+
+  async function testT24Reminder() {
+    const res = await fetch("http://localhost:5000/api/notify/ivr/trigger-reminder-alert", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callerPhone: "9876543210", tokenId: currentSessionToken, lang: currentLang })
+    });
+    const d = await res.json();
+    addSmsLog(d.smsRecord.message);
+    playVoice(d.spokenPrompt, currentLang);
+  }
+
+  async function submitOfflinePaperForm() {
+    const res = await fetch("http://localhost:5000/api/notify/escrow/submit-paper-form", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ operatorId: "VLE-42", farmerName: "Ramesh Patel", phone: "9876543210" })
+    });
+    const d = await res.json();
+    document.getElementById("escrowStatus").innerText = `Submission ID: ${d.escrowRecord.submissionId}\nHMAC: ${d.escrowRecord.hmacSignature.slice(0, 32)}...\nSanitized ID: ${d.escrowRecord.sanitizedGovtRef}`;
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    fetchCallbacks();
+  });
+</script>
+
+</body>
+</html>

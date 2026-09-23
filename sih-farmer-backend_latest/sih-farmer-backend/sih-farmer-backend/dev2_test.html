@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dev 2 Features & Endpoints Test Dashboard</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f4f8; margin: 0; padding: 25px; }
+    .container { max-width: 900px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+    h2 { color: #1b5e20; margin-top: 0; }
+    p.subtitle { color: #555; margin-bottom: 20px; font-size: 14px; }
+    .section-box { background: #fafafa; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px; margin-bottom: 16px; }
+    .section-title { font-weight: bold; font-size: 14px; margin-bottom: 10px; color: #333; }
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    button { cursor: pointer; padding: 9px 15px; font-weight: 600; border-radius: 6px; border: none; font-size: 13px; transition: 0.2s; }
+    .btn-primary { background: #2e7d32; color: white; }
+    .btn-primary:hover { background: #1b5e20; }
+    .btn-blue { background: #1976d2; color: white; }
+    .btn-blue:hover { background: #0d47a1; }
+    .btn-orange { background: #e65100; color: white; }
+    .btn-orange:hover { background: #bf360c; }
+    .output-container { margin-top: 20px; }
+    .console-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .console { background: #18181b; color: #4ade80; padding: 16px; border-radius: 8px; font-family: monospace; font-size: 13px; white-space: pre-wrap; max-height: 350px; overflow-y: auto; }
+    .badge-status { background: #e8f5e9; color: #2e7d32; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h2>AGRISync Dev 2 Endpoints Integration Test</h2>
+  <p class="subtitle">Test MSP Market Rates, Farmer History, Weather Alerts, Support Tickets, and Localization.</p>
+
+  <!-- Step 0: Ensure Session -->
+  <div class="section-box">
+    <div class="section-title">0. Session Setup (Needed for protected routes like History & Ticket)</div>
+    <div class="btn-row">
+      <button class="btn-primary" onclick="setupSession()">Login as Farmer (Ramesh Patel)</button>
+      <span id="sessionStatus" style="font-size: 13px; margin-left: 10px; align-self: center; color: #666;">No session active.</span>
+    </div>
+  </div>
+
+  <!-- Market Rates & Advisory -->
+  <div class="section-box">
+    <div class="section-title">1. Market & Mandi Advisories (Public / Screen 5 & Alerts)</div>
+    <div class="btn-row">
+      <button class="btn-blue" onclick="fetchEndpoint('/api/market/msp-prices')">Get All MSP Prices</button>
+      <button class="btn-blue" onclick="fetchEndpoint('/api/market/msp-prices?season=Rabi')">Filter MSP (Rabi Season)</button>
+      <button class="btn-blue" onclick="fetchEndpoint('/api/market/advisory')">Get Weather & Mandi Advisories</button>
+    </div>
+  </div>
+
+  <!-- Farmer Past Records & Support -->
+  <div class="section-box">
+    <div class="section-title">2. Procurement Records & Help Desk (Screen 4 & Screen 6)</div>
+    <div class="btn-row">
+      <button class="btn-primary" onclick="fetchEndpoint('/api/farmer/history/FARM-101')">Get Farmer History (FARM-101)</button>
+      <button class="btn-primary" onclick="fetchEndpoint('/api/farmer/support-info')">Get Helpline & FAQs</button>
+      <button class="btn-orange" onclick="submitTestTicket()">Submit Test Support Ticket (POST)</button>
+    </div>
+  </div>
+
+  <!-- Multilingual Strings -->
+  <div class="section-box">
+    <div class="section-title">3. Multilingual Localization (i18n)</div>
+    <div class="btn-row">
+      <button class="btn-primary" onclick="fetchEndpoint('/api/system/localization?lang=en')">English (en)</button>
+      <button class="btn-primary" onclick="fetchEndpoint('/api/system/localization?lang=hi')">Hindi (hi)</button>
+      <button class="btn-primary" onclick="fetchEndpoint('/api/system/localization?lang=mr')">Marathi (mr)</button>
+    </div>
+  </div>
+
+  <!-- Output Console -->
+  <div class="output-container">
+    <div class="console-header">
+      <strong>Response Payload Inspector:</strong>
+      <button style="background: #e4e4e7; color: #333; padding: 4px 10px; font-size: 11px;" onclick="clearConsole()">Clear Console</button>
+    </div>
+    <div class="console" id="consoleOutput">// Click any button above to test Dev 2's backend routes...</div>
+  </div>
+</div>
+
+<script>
+  let activeToken = null;
+
+  async function setupSession() {
+    try {
+      const res = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: "9876543210" })
+      });
+      const data = await res.json();
+      if (data.success) {
+        activeToken = data.accessToken;
+        document.getElementById("sessionStatus").innerHTML = `Logged in as <strong>${data.user.name}</strong> (${data.user.role})`;
+        logOutput(`[AUTH OK] Active session established. Token attached to subsequent calls.`);
+      } else {
+        logOutput(`[AUTH FAILED] ${data.message}`);
+      }
+    } catch (err) {
+      logOutput(`[CONNECTION ERROR] Server not running on http://localhost:5000: ${err.message}`);
+    }
+  }
+
+  async function fetchEndpoint(endpoint) {
+    logOutput(`[FETCHING] http://localhost:5000${endpoint}...`);
+    try {
+      const headers = {};
+      if (activeToken) {
+        headers["Authorization"] = `Bearer ${activeToken}`;
+      }
+      const res = await fetch(`http://localhost:5000${endpoint}`, { headers });
+      const data = await res.json();
+      logOutput(`[HTTP ${res.status}]\n` + JSON.stringify(data, null, 2));
+    } catch (err) {
+      logOutput(`[NETWORK ERROR] ${err.message}`);
+    }
+  }
+
+  async function submitTestTicket() {
+    if (!activeToken) {
+      logOutput("[AUTH REQUIRED] Please click 'Login as Farmer' first so the ticket is linked to your ID.");
+      return;
+    }
+    logOutput("[POSTING] Submitting test grievance ticket...");
+    try {
+      const res = await fetch("http://localhost:5000/api/farmer/ticket", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${activeToken}`
+        },
+        body: JSON.stringify({
+          issueType: "Weighbridge Queue Delay",
+          description: "Heavy tractor congestion near Gate B scale; request queue marshal assistance."
+        })
+      });
+      const data = await res.json();
+      logOutput(`[HTTP ${res.status} CREATED]\n` + JSON.stringify(data, null, 2));
+    } catch (err) {
+      logOutput(`[NETWORK ERROR] ${err.message}`);
+    }
+  }
+
+  function logOutput(msg) {
+    document.getElementById("consoleOutput").innerText = msg;
+  }
+
+  function clearConsole() {
+    document.getElementById("consoleOutput").innerText = "// Cleared. Ready for next test.";
+  }
+</script>
+
+</body>
+</html>
